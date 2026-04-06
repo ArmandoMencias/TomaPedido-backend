@@ -31,3 +31,15 @@ class Ticket(BaseModel):
 class LoginRequest(BaseModel):
     username: str
     pin: str
+
+# 1. Agregamos este sub-modelo nuevo
+class ProductoTicket(BaseModel):
+    nombre: str
+    precio: float
+
+# 2. Modificamos tu TicketRequest existente
+class TicketRequest(BaseModel):
+    cliente: str
+    productos: List[ProductoTicket] 
+    total: float
+    status: str

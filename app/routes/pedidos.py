@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from bson import ObjectId
-from app.models import Ticket, Plato
+from app.models import Ticket, Plato, TicketRequest
 from app.database import db
 
 router = APIRouter()
@@ -16,6 +16,7 @@ async def crear_pedido(ticket: Ticket):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al guardar: {str(e)}")
+
 
 @router.get("/pedidos_activos")
 async def obtener_pedidos():
@@ -47,6 +48,64 @@ async def agregar_plato(id_mongo: str, nuevo_plato: Plato):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
+# -----------------------------------------
+# LEER CUENTA 
+# -----------------------------------------
+@router.get("/pedidos/{cliente_nombre}")
+async def obtener_cuenta(cliente_nombre: str):
+    # Buscamos si el cliente tiene una cuenta activa
+    ticket = await db["tickets"].find_one({"cliente": cliente_nombre, "status": "pendiente"})
+    
+    if ticket:
+        # Convertimos el ID de Mongo a texto para evitar errores de codificación
+        ticket["_id"] = str(ticket["_id"])
+        return ticket
+    else:
+        # Si es cliente nuevo, le enviamos la cuenta en ceros
+        return {"cliente": cliente_nombre, "productos": [], "total": 0.0, "status": "nuevo"}
+
+
+
+# GUARDAR/AGREGAR PEDIDO)
+@router.post("/pedidos")
+async def recibir_pedido(ticket: TicketRequest):
+    ticket_dict = ticket.model_dump() 
+    
+    resultado = await db["tickets"].update_one(
+        {"cliente": ticket.cliente, "status": "pendiente"},
+        {
+            "$push": {"productos": {"$each": ticket_dict["productos"]}},
+            "$inc": {"total": ticket.total},
+            "$setOnInsert": {"status": "pendiente"}
+        },
+        upsert=True
+    )
+    
+    return {"mensaje": f"Pedido actualizado para {ticket.cliente}"}
+
+# -----------------------------------------
+# CERRAR CUENTA
+# -----------------------------------------
+@router.put("/pedidos/{cliente_nombre}/cobrar")
+async def cobrar_cuenta(cliente_nombre: str):
+    resultado = await db["tickets"].update_one(
+        {"cliente": cliente_nombre, "status": "pendiente"},
+        {"$set": {"status": "cerrado"}}
+    )
+    
+    if resultado.modified_count == 1:
+        return {"mensaje": f"Cuenta de {cliente_nombre} cobrada con éxito."}
+    else:
+        return {"mensaje": "No se encontró una cuenta pendiente para este cliente."}
+    
+@router.get("/clientes/activos")
+async def obtener_clientes_activos():
+    # Buscamos solo los que no han pagado
+    cursor = db["tickets"].find({"status": "pendiente"}, {"cliente": 1, "_id": 0})
+    clientes = await cursor.to_list(length=100)
+    # Devolvemos solo una lista de strings con los nombres
+    return [c["cliente"] for c in clientes]
+
 @router.patch("/cerrar_cuenta/{id_mongo}")
 async def cerrar_cuenta(id_mongo: str):
     try:
