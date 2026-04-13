@@ -14,9 +14,31 @@ class ItemPedido(BaseModel):
     notas: str = ""
     estado_cocina: str = "pendiente"
 
+class LoginRequest(BaseModel):
+    username: str
+    pin: str
+
+# 1. Agregamos este sub-modelo nuevo
+class ProductoTicket(BaseModel):
+    nombre: str
+    precio: float
+    ingredientes_elegidos: List[str] = []
+    cantidad: int
+    preparado: bool = False
+
 class Plato(BaseModel):
     nombre_plato: str
-    items: List[ItemPedido]
+    items: List[ProductoTicket]
+
+# 2. Modificamos tu TicketRequest existente
+class TicketRequest(BaseModel):
+    cliente: str
+    platos: List[Plato]
+    total: float
+    status: str
+    status_cocina: str = "pendiente" # "pendiente" o "listo"
+    status_mesero: str = "pendiente"  # "pendiente", "servido", etc.
+
 
 class Ticket(BaseModel):
     id_ticket: str
@@ -27,19 +49,6 @@ class Ticket(BaseModel):
     fecha_hora: str
     platos: List[Plato]
     total_acumulado: float
-
-class LoginRequest(BaseModel):
-    username: str
-    pin: str
-
-# 1. Agregamos este sub-modelo nuevo
-class ProductoTicket(BaseModel):
-    nombre: str
-    precio: float
-
-# 2. Modificamos tu TicketRequest existente
-class TicketRequest(BaseModel):
-    cliente: str
-    productos: List[ProductoTicket] 
-    total: float
-    status: str
+    status_cocina: str = "pendiente"
+    status_mesero: str = "pendiente"
+    
